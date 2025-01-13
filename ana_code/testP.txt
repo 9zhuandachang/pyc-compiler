@@ -1,0 +1,12 @@
+int y;
+int x;
+while x < 10 :
+    if (count > 5) break;  // Exit loop if count exceeds 5
+    for(int i=0;i<10;i=i+1){
+        y=y+i;
+    }
+
+    x=x*y;
+
+
+x=1;
