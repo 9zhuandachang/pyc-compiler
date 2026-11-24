@@ -1,0 +1,19 @@
+# Recursive & iterative Fibonacci in PyC
+
+int fib_rec(int n) {
+    if (n <= 1) return n;
+    return fib_rec(n - 1) + fib_rec(n - 2);
+}
+
+def fib_iter(n: int) -> int:
+    if n <= 1:
+        return n
+    int a = 0, b = 1
+    for (int i = 2; i <= n; i++):
+        int next = a + b
+        a = b
+        b = next
+    return b
+
+for (int i = 0; i <= 10; i++):
+    println("fib(", i, ") -> rec:", fib_rec(i), "iter:", fib_iter(i))

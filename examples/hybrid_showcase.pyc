@@ -1,0 +1,32 @@
+// PyC Hybrid Syntax Showcase: mixing C-style braces and Python-style indentation
+
+def greet(name: string, times: int):
+    for (int i = 1; i <= times; i++):
+        if i == times:
+            println("[" + name + "] final hello #", i)
+        else:
+            println("[" + name + "] hello #", i)
+
+float average(int arr[], int n) {
+    float total = 0.0;
+    int i = 0;
+    while i < n:
+        total += arr[i]
+        i++
+    return total / n;
+}
+
+int main() {
+    greet("PyC", 3);
+
+    int scores[5];
+    scores[0] = 88;
+    scores[1] = 92;
+    scores[2] = 79;
+    scores[3] = 95;
+    scores[4] = 86;
+
+    println("Scores:", scores, "length =", len(scores));
+    println("Average:", average(scores, len(scores)));
+    return 0;
+}
