@@ -1,45 +1,91 @@
 # PyC Compiler & Virtual Machine
 
-一个基于 C11 实现的 **PyC（Python + C 混合语法 / C-Minus 扩展风格）完整编译器与栈式字节码虚拟机**。
+A complete **C11 compiler and stack-based bytecode virtual machine** for **PyC** — a hybrid programming language combining **C / C-Minus** syntax with **Python-style indentation and function definitions**.
 
-项目实现了从源代码到执行的完整编译流水线：
+---
+
+## Architecture & Compilation Pipeline
 
 ```text
 Source (.pyc)
    │
-   ▼  [1] Lexer (scanner.c)         ── 词法分析：行列号、逻辑行缩进、C/Python 注释与字面量
+   ▼  [1] Lexer (scanner.c)         ── Line/column tracking, logical indentation, comments & literals
 TokenList
    │
-   ▼  [2] Parser (parser.c, ast.c)  ── 递归下降语法分析：花括号 {} 与冒号缩进 : 自由混写
+   ▼  [2] Parser (parser.c, ast.c)  ── Recursive-descent parser supporting mixed {} and : blocks
   AST (TreeNode)
    │
-   ▼  [3] Semantic Analyzer         ── 链式哈希作用域符号表 + 完整类型/控制流/左值检查
+   ▼  [3] Semantic Analyzer         ── Chained-hash scoped symbol table + type, lvalue & flow checks
 Typed AST + SymbolTable
    │
-   ▼  [4] Bytecode Compiler         ── 栈式字节码生成、常量池、循环跳转回填、反汇编输出
+   ▼  [4] Bytecode Compiler         ── Constant pool, local/global slots, loop backpatching & disasm
 BytecodeProgram
    │
-   ▼  [5] Stack VM (vm.c)           ── 虚拟机执行、调用栈帧、堆数组/字符串、运行时越界与除零保护
+   ▼  [5] Stack VM (vm.c)           ── Call frames, heap arrays/strings, bounds & div-by-zero guards
 Program Output
 ```
 
 ---
 
-## 目录结构
+## Screenshots
+
+### Running Example Programs
+![Running Example Programs](docs/images/demo_run.png)
+
+### Abstract Syntax Tree & Scoped Symbol Table
+![AST and Scoped Symbol Table](docs/images/ast_symtab.png)
+
+### Bytecode Disassembly
+![Bytecode Disassembly](docs/images/bytecode_disasm.png)
+
+### Automated Unit & Integration Test Suite
+![Automated Test Suite](docs/images/test_suite.png)
+
+---
+
+## Language Features
+
+- **Hybrid Block Syntax**
+  - C-style brace blocks `{ ... }` (free-form indentation inside braces)
+  - Python-style colon + indented suites `: \n <indented block>`
+  - Seamless mixing (e.g., `while x > y :\n { ... }` or Python-indented `if` inside `{ ... }`)
+  - Optional semicolons `;`, plus three comment styles: `//`, `/* ... */`, and `#`
+- **Data Types & Arrays**
+  - Primitive types: `int`, `float`, `string` (aliases `str` / `char`), `bool`, `void`
+  - 1D heap-allocated arrays `T arr[N]` passed by reference to functions
+  - Automatic numeric widening (`int -> float`) and string concatenation with `+`
+- **Dual-Style Functions & Recursion**
+  - C-style: `int fib_rec(int n) { ... }`
+  - Python-style: `def fib_iter(n: int) -> int:` (return type automatically inferred from `return` statements if `-> type` is omitted)
+  - Forward calls and mutual recursion supported out of the box; a 0-argument `main()` function is invoked automatically after top-level initialization
+- **Control Flow & Operators**
+  - Statements: `if / elif / else`, `while`, `do ... while`, `for`, `break`, `continue`, `return`, `pass`
+  - Operators: `+ - * / %`, prefix/postfix `++ --`, `= += -= *= /= %=`, `== != < <= > >=`, short-circuiting `&& || !` (`and` / `or` / `not`)
+- **Built-in Functions**
+  - `print(...)` / `println(...)` — variadic formatted output
+  - `write(x)` — single-value newline output (C-Minus compatible)
+  - `read()` / `read_int()` / `read_float()` — standard input readers
+  - `len(x)` — returns array or string length
+
+---
+
+## Project Structure
 
 ```text
 .
-├── CMakeLists.txt           # CMake 构建与 CTest 测试配置
-├── include/                 # 公共头文件
-│   ├── common.h             # 内存分配辅助、文件读取与统一诊断列表
-│   ├── scanner.h            # Token 定义与词法分析接口
-│   ├── ast.h                # AST 节点与类型定义
-│   ├── parser.h             # 语法分析接口
-│   ├── symbol_table.h       # 链式哈希作用域符号表
-│   ├── analyzer.h           # 语义分析与类型检查器
-│   ├── bytecode.h           # 字节码指令集、常量池与反汇编接口
-│   └── vm.h                 # 栈式虚拟机接口
-├── src/                     # 核心源码实现与 CLI 入口
+├── CMakeLists.txt           # CMake build & CTest configuration
+├── docs/
+│   └── images/              # Terminal screenshots used in README
+├── include/                 # Public headers
+│   ├── common.h             # Checked allocators, file I/O, diagnostics
+│   ├── scanner.h            # Token types and lexer interface
+│   ├── ast.h                # AST node and DataType definitions
+│   ├── parser.h             # Recursive-descent parser interface
+│   ├── symbol_table.h       # Chained-hash hierarchical symbol table
+│   ├── analyzer.h           # Semantic analyzer & type checker
+│   ├── bytecode.h           # Bytecode ISA, constants & disassembler
+│   └── vm.h                 # Stack VM configuration & runner
+├── src/                     # Core implementation and CLI driver
 │   ├── common.c
 │   ├── scanner.c
 │   ├── ast.c
@@ -49,54 +95,25 @@ Program Output
 │   ├── bytecode.c
 │   ├── vm.c
 │   └── main.c
-├── examples/                # 示例程序与保留的原课程测试文件
-│   ├── hybrid_showcase.pyc  # C/Python 混合语法综合演示
-│   ├── fibonacci.pyc        # 递归与迭代斐波那契数列
-│   ├── quicksort.pyc        # 原地快速排序（数组引用传参）
-│   ├── legacy_pyc.txt       # 原仓库词法/语法测试样例
-│   └── legacy_testP.txt     # 原仓库语法测试样例
+├── examples/                # Sample PyC programs and legacy course samples
+│   ├── hybrid_showcase.pyc  # Mixed C/Python syntax showcase
+│   ├── fibonacci.pyc        # Recursive & iterative Fibonacci
+│   ├── quicksort.pyc        # In-place QuickSort on int[]
+│   ├── legacy_pyc.txt       # Archived original lexer/parser sample
+│   └── legacy_testP.txt     # Archived original parser sample
 └── tests/
-    └── test_runner.c        # 覆盖词法、语法、语义、执行与运行时错误的自动化测试套件
+    └── test_runner.c        # 15 unit & end-to-end integration tests
 ```
 
 ---
 
-## PyC 语言特性
+## Build & Run
 
-- **双风格代码块自由混写**
-  - C 风格花括号 `{ ... }`（块内不强制缩进）
-  - Python 风格冒号 + 缩进 `: \n <indented block>`
-  - 支持混合写法（如 `while x > y :\n { ... }` 或在 `{}` 块内嵌套 Python 缩进 `if`）
-  - 语句末尾分号 `;` 可选，支持 `//`、`/* ... */`、`#` 三种注释
-- **基础类型与数组**
-  - 支持 `int`、`float`、`string`（别名 `str`/`char`）、`bool`、`void` 及一维数组 `T arr[N]`
-  - 支持整数到浮点数的自动类型提升（`int -> float`）、字符串 `+` 拼接
-- **双风格函数定义与互相递归**
-  - C 风格：`int add(int a, int b) { return a + b; }`
-  - Python 风格：`def add(a: int, b: int) -> int:`（省略 `-> type` 时自动从 `return` 语句推导返回类型）
-  - 支持前向调用与互相递归；若定义了无参 `main()` 函数，程序会在初始化全局变量后自动调用 `main()`
-- **完整控制流与运算符**
-  - 控制流：`if / elif / else`、`while`、`do ... while`、`for`、`break`、`continue`、`return`、`pass`
-  - 运算符：`+ - * / %`、`++ --`（前缀与后缀）、`= += -= *= /= %=`、`== != < <= > >=`、`&& || !`（别名 `and or not`，支持短路求值）
-- **内置函数**
-  - `print(...)` / `println(...)`：可变参数格式化输出
-  - `write(x)`：单值换行输出（兼容 C-Minus）
-  - `read()` / `read_int()` / `read_float()`：从标准输入读取整数或浮点数
-  - `len(x)`：返回数组长度或字符串长度
+### Prerequisites
+- A C11 compiler (MSVC, GCC, or Clang)
+- CMake 3.16+
 
----
-
-## 构建与运行
-
-### 使用 CMake 构建
-
-**Windows (MSVC Developer Command Prompt / VS Build Tools):**
-
-```powershell
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build
-ctest --test-dir build --output-on-failure
-```
+### Build & Test
 
 **Linux / macOS (GCC / Clang):**
 
@@ -106,29 +123,37 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-### CLI 用法
+**Windows (MSVC Developer Command Prompt / VS Build Tools):**
+
+```powershell
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+### CLI Usage
 
 ```text
 Usage: pyc [options] <source-file>
 
 Options:
-  --tokens     打印词法 Token 流
-  --ast        打印抽象语法树（AST）
-  --symtab     打印分作用域符号表
-  --bytecode   反汇编生成的字节码指令
-  --trace      跟踪虚拟机每步指令执行
-  --check      仅执行前端检查（配合 --bytecode 可只编译反汇编而不运行）
-  -h, --help   显示帮助信息
+  --tokens     Print lexical token stream
+  --ast        Print Abstract Syntax Tree
+  --symtab     Print scoped symbol table
+  --bytecode   Disassemble generated bytecode
+  --trace      Trace VM instruction execution
+  --check      Run frontend (and bytecode disassembly if --bytecode is set) without executing
+  -h, --help   Show this help message
 ```
 
-### 运行示例
+### Quick Examples
 
-```powershell
-# 直接编译并运行示例程序
-.\build\pyc.exe examples\hybrid_showcase.pyc
-.\build\pyc.exe examples\fibonacci.pyc
-.\build\pyc.exe examples\quicksort.pyc
+```bash
+# Compile and run example programs
+./build/pyc examples/hybrid_showcase.pyc
+./build/pyc examples/quicksort.pyc
+./build/pyc examples/fibonacci.pyc
 
-# 查看某程序的符号表与字节码反汇编（不执行）
-.\build\pyc.exe --symtab --bytecode --check examples\hybrid_showcase.pyc
+# Inspect compiler stages without executing
+./build/pyc --tokens --ast --symtab --bytecode --check examples/hybrid_showcase.pyc
 ```
